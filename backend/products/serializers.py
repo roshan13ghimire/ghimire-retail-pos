@@ -1,5 +1,5 @@
-from rest_framework import serializers
 
+from rest_framework import serializers
 from .models import Product
 
 
@@ -9,23 +9,7 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "name",
-            "sku",
             "barcode",
-            "category",
-            "brand",
-            "unit",
-            "purchase_price",
-            "selling_price",
-            "vat_rate",
-            "track_stock",
-            "track_expiry",
-            "is_active",
-            "created_at",
-            "updated_at",
-        ]
-        read_only_fields = [
-            "id",
-            "sku",
-            "created_at",
-            "updated_at",
+            "price",
+            "stock",
         ]
