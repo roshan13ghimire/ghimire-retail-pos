@@ -4,3 +4,123 @@ body {
   background: #f8fafc;
   color: #0f172a;
 }
+
+
+/* Hide the printable receipt on the normal page */
+.receipt-print {
+  display: none;
+}
+
+/* Styles used only when printing */
+@media print {
+
+  @page {
+    margin: 4mm;
+  }
+
+  body {
+    margin: 0 !important;
+    background: white !important;
+  }
+
+  /* Hide the main application navigation */
+  #root > div > header {
+    display: none !important;
+  }
+
+  /* Remove the normal page spacing */
+  #root > div > main {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide Sales History controls and tables */
+  .sales-history-screen {
+    display: none !important;
+  }
+
+  /* Show only the selected receipt */
+  .receipt-print {
+    display: block !important;
+    width: 70mm;
+    max-width: 100%;
+    padding: 2mm;
+    box-sizing: border-box;
+    background: white;
+    color: black;
+
+    font-family: monospace;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  .receipt-header {
+    text-align: center;
+    margin-bottom: 12px;
+  }
+
+  .receipt-header h2 {
+    font-size: 16px;
+    font-weight: bold;
+    margin: 0;
+  }
+
+  .receipt-header p {
+    margin-top: 4px;
+  }
+
+  .receipt-divider {
+    border-top: 1px dashed black;
+    margin: 10px 0;
+  }
+
+  .receipt-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 5px 0;
+  }
+
+  .receipt-row span:last-child {
+    text-align: right;
+  }
+
+  .receipt-items {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .receipt-items th,
+  .receipt-items td {
+    padding: 5px 2px;
+    text-align: right;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+  }
+
+  .receipt-items th:first-child,
+  .receipt-items td:first-child {
+    width: 40%;
+    text-align: left;
+  }
+
+  .receipt-total {
+    font-size: 14px;
+    font-weight: bold;
+  }
+
+  .receipt-footer {
+    text-align: center;
+    margin-top: 15px;
+  }
+
+  .receipt-footer p {
+    margin: 3px 0;
+  }
+  /* Hide the POS interface when printing */
+.pos-screen {
+  display: none !important;
+}
+}
