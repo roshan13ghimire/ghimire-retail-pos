@@ -33,9 +33,14 @@ from .serializers import (
     RefundRequestSerializer,
     RefundSerializer,
 )
+from accounts.permissions import (
+    IsPOSStaff,
+    IsManagerOrAdmin,
+)
 
 
 class CheckoutView(APIView):
+    permission_classes = [IsPOSStaff]
 
     def post(self, request):
         serializer = CheckoutSerializer(data=request.data)
@@ -367,6 +372,7 @@ class DailySalesReportView(APIView):
 
 
 class RefundView(APIView):
+    permission_classes = [IsManagerOrAdmin]
 
     # View previously recorded refunds
     def get(self, request):

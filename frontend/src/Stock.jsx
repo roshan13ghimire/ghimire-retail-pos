@@ -2,9 +2,10 @@
 import { useEffect, useState } from "react";
 import StockHistory from "./StockHistory";
 import StockAdjustment from "./StockAdjustment";
+import { apiFetch } from "./api";
 
 async function fetchProducts() {
-  const response = await fetch("/api/products/");
+  const response = await apiFetch("/api/products/");
 
   if (!response.ok) {
     throw new Error("Failed to load products.");
@@ -64,7 +65,7 @@ async function handleAdjustmentSaved() {
     setSaving(true);
 
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/products/${productId}/receive-stock/`,
         {
           method: "POST",

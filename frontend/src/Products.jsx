@@ -1,5 +1,6 @@
 
 import { useEffect, useState } from "react";
+import { apiFetch } from "./api";
 
 const emptyForm = {
   name: "",
@@ -25,7 +26,7 @@ function Products() {
   useEffect(() => {
     async function loadProducts() {
       try {
-        const response = await fetch("/api/products/");
+        const response = await apiFetch("/api/products/");
 
         if (!response.ok) {
           throw new Error("Failed to load products.");
@@ -145,7 +146,7 @@ function Products() {
         ? `/api/products/${editingId}/`
         : "/api/products/";
 
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method: isEditing ? "PATCH" : "POST",
         headers: {
           "Content-Type": "application/json",

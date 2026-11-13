@@ -1,4 +1,5 @@
 
+import { apiFetch } from "./api";
 import { useState } from "react";
 
 function StockAdjustment({ products, onSaved }) {
@@ -8,6 +9,7 @@ function StockAdjustment({ products, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  
 
   const product = products.find(
     (p) => String(p.id) === productId
@@ -37,7 +39,7 @@ function StockAdjustment({ products, onSaved }) {
     setMessage("");
 
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/products/${productId}/adjust-stock/`,
         {
           method: "POST",

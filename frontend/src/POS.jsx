@@ -1,10 +1,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import Receipt from "./Receipt";
+import { apiFetch } from "./api";
 
 // Fetch products from Django
 async function getProducts() {
-  const response = await fetch("/api/products/");
+  const response = await apiFetch("/api/products/");
 
   if (!response.ok) {
     throw new Error("Failed to load products.");
@@ -225,7 +226,7 @@ function POS() {
     setScanMessage("");
 
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         "/api/sales/checkout/",
         {
           method: "POST",

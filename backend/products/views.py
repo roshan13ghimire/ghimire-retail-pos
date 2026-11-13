@@ -1,26 +1,43 @@
 
-from rest_framework import viewsets
-from .models import Product
-from .serializers import ProductSerializer
-
 from django.db import transaction
 from django.shortcuts import get_object_or_404
+
+from rest_framework import viewsets, generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
-
-from .models import Product, StockMovement
-from .serializers import ReceiveStockSerializer
-from rest_framework import generics
-from .serializers import StockMovementSerializer
-from .serializers import StockAdjustmentSerializer
 from rest_framework.exceptions import ValidationError
 
+from .models import Product, StockMovement
+
+from .serializers import (
+    ProductSerializer,
+    ReceiveStockSerializer,
+    StockMovementSerializer,
+    StockAdjustmentSerializer,
+)
+
+from accounts.permissions import (
+    ProductPermission,
+    IsManagerOrAdmin,
+)
+
+
+# -----------------------------------------
+# 1. Product Management
+# -----------------------------------------
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all().order_by("name")
     serializer_class = ProductSerializer
 
+    permission_classes = [ProductPermission]
 
+
+# -----------------------------------------
+# 2. Receive Stock
+# Admin and Manager Only
+# -----------------------------------------
 class ReceiveStockView(APIView):
+    permission_classes = [IsManagerOrAdmin]
 
     def post(self, request, pk):
         serializer = ReceiveStockSerializer(
@@ -42,7 +59,7 @@ class ReceiveStockView(APIView):
             product.stock += quantity
             product.save(update_fields=["stock"])
 
-            # Record the stock movement
+            # Record stock movement
             StockMovement.objects.create(
                 product=product,
                 movement_type=StockMovement.Type.RECEIVED,
@@ -57,14 +74,26 @@ class ReceiveStockView(APIView):
         })
 
 
+# -----------------------------------------
+# 3. Stock Movement History
+# Admin and Manager Only
+# -----------------------------------------
 class StockMovementListView(generics.ListAPIView):
+    permission_classes = [IsManagerOrAdmin]
+
     queryset = StockMovement.objects.select_related(
         "product"
     ).order_by("-created_at", "-id")
 
     serializer_class = StockMovementSerializer
 
+
+# -----------------------------------------
+# 4. Stock Adjustment
+# Admin and Manager Only
+# -----------------------------------------
 class StockAdjustmentView(APIView):
+    permission_classes = [IsManagerOrAdmin]
 
     def post(self, request, pk):
         serializer = StockAdjustmentSerializer(
@@ -72,11 +101,15 @@ class StockAdjustmentView(APIView):
         )
         serializer.is_valid(raise_exception=True)
 
-        counted_stock = serializer.validated_data["counted_stock"]
+        counted_stock = serializer.validated_data[
+            "counted_stock"
+        ]
+
         reason = serializer.validated_data["reason"]
 
         with transaction.atomic():
 
+            # Lock product while updating stock
             product = get_object_or_404(
                 Product.objects.select_for_update(),
                 pk=pk
@@ -95,11 +128,11 @@ class StockAdjustmentView(APIView):
             else:
                 movement_type = StockMovement.Type.ADJUST_OUT
 
-            # Update stock to the actual count
+            # Update stock to actual count
             product.stock = counted_stock
             product.save(update_fields=["stock"])
 
-            # Record why stock changed
+            # Record inventory adjustment
             StockMovement.objects.create(
                 product=product,
                 movement_type=movement_type,

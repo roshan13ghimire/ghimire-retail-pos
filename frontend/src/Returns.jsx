@@ -1,5 +1,6 @@
 
 import { useEffect, useState } from "react";
+import { apiFetch } from "./api";
 
 function Returns() {
   const [sales, setSales] = useState([]);
@@ -35,8 +36,8 @@ function Returns() {
       try {
         const [salesResponse, refundsResponse] =
           await Promise.all([
-            fetch("/api/sales/"),
-            fetch("/api/sales/refunds/"),
+            apiFetch("/api/sales/"),
+            apiFetch("/api/sales/refunds/"),
           ]);
 
         if (!salesResponse.ok || !refundsResponse.ok) {
@@ -144,7 +145,7 @@ function Returns() {
     setMessage("");
 
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         "/api/sales/refunds/",
         {
           method: "POST",
