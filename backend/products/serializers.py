@@ -30,6 +30,7 @@ class StockMovementSerializer(serializers.ModelSerializer):
         source="product.name",
         read_only=True
     )
+    performed_by_username = serializers.SerializerMethodField()
 
     class Meta:
         model = StockMovement
@@ -40,7 +41,14 @@ class StockMovementSerializer(serializers.ModelSerializer):
             "movement_type",
             "quantity",
             "created_at",
+            "performed_by_username",
         ]
+    
+
+    def get_performed_by_username(self, obj):
+        if obj.performed_by_id:
+            return obj.performed_by.username
+        return None
 
 
 class StockAdjustmentSerializer(serializers.Serializer):

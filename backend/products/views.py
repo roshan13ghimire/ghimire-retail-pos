@@ -59,11 +59,12 @@ class ReceiveStockView(APIView):
             product.stock += quantity
             product.save(update_fields=["stock"])
 
-            # Record stock movement
+            # Record stock movement and employee
             StockMovement.objects.create(
                 product=product,
                 movement_type=StockMovement.Type.RECEIVED,
-                quantity=quantity
+                quantity=quantity,
+                performed_by=request.user
             )
 
         return Response({
@@ -82,7 +83,8 @@ class StockMovementListView(generics.ListAPIView):
     permission_classes = [IsManagerOrAdmin]
 
     queryset = StockMovement.objects.select_related(
-        "product"
+        "product",
+        "performed_by"
     ).order_by("-created_at", "-id")
 
     serializer_class = StockMovementSerializer
@@ -132,12 +134,13 @@ class StockAdjustmentView(APIView):
             product.stock = counted_stock
             product.save(update_fields=["stock"])
 
-            # Record inventory adjustment
+            # Record inventory adjustment and employee
             StockMovement.objects.create(
                 product=product,
                 movement_type=movement_type,
                 quantity=abs(difference),
-                reason=reason
+                reason=reason,
+                performed_by=request.user
             )
 
         return Response({

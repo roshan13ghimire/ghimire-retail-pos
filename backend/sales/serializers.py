@@ -38,10 +38,7 @@ class CheckoutSerializer(serializers.Serializer):
 
 
 class SaleItemSerializer(serializers.ModelSerializer):
-    product_name = serializers.CharField(
-        source="product.name",
-        read_only=True
-    )
+    product_name = serializers.CharField(read_only=True)
 
     class Meta:
         model = SaleItem
@@ -70,7 +67,14 @@ class SaleSerializer(serializers.ModelSerializer):
             "change_amount",
             "created_at",
             "items",
+            "cashier_username",
         ]
+    cashier_username = serializers.SerializerMethodField()
+
+    def get_cashier_username(self, obj):
+        if obj.created_by_id:
+            return obj.created_by.username
+        return None
 
 class RefundRequestSerializer(serializers.Serializer):
     refund_request_id = serializers.UUIDField()
@@ -85,6 +89,7 @@ class RefundRequestSerializer(serializers.Serializer):
     )
 
 
+
 class RefundSerializer(serializers.ModelSerializer):
     sale_id = serializers.IntegerField(
         source="sale_item.sale_id",
@@ -92,9 +97,11 @@ class RefundSerializer(serializers.ModelSerializer):
     )
 
     product_name = serializers.CharField(
-        source="sale_item.product.name",
+        source="sale_item.product_name",
         read_only=True
     )
+
+    processed_by_username = serializers.SerializerMethodField()
 
     class Meta:
         model = Refund
@@ -109,4 +116,10 @@ class RefundSerializer(serializers.ModelSerializer):
             "restock",
             "reason",
             "created_at",
+            "processed_by_username",
         ]
+
+    def get_processed_by_username(self, obj):
+        if obj.processed_by_id:
+            return obj.processed_by.username
+        return None

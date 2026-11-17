@@ -50,17 +50,15 @@ function SalesHistory() {
     window.print();
   }
 
-  // Get the sale that is currently expanded
+  // Get the sale currently expanded
   const activeSale = sales.find(
     (sale) => sale.id === selectedSale
   );
 
   return (
     <div>
-
       {/* Normal Sales History Page */}
       <div className="sales-history-screen space-y-6">
-
         {/* Page Heading */}
         <div>
           <h2 className="text-2xl font-semibold">
@@ -69,7 +67,7 @@ function SalesHistory() {
 
           <p className="mt-1 text-sm text-gray-500">
             View transactions, payment details,
-            and print receipts.
+            cashier information, and print receipts.
           </p>
         </div>
 
@@ -89,9 +87,7 @@ function SalesHistory() {
             No sales recorded yet.
           </div>
         ) : (
-
           <div className="space-y-3">
-
             {sales.map((sale) => {
               const isExpanded =
                 selectedSale === sale.id;
@@ -106,10 +102,8 @@ function SalesHistory() {
                   key={sale.id}
                   className="overflow-hidden rounded-xl border border-gray-200 bg-white"
                 >
-
                   {/* Sale Summary */}
                   <div className="flex flex-wrap items-center justify-between gap-4 p-5">
-
                     <div>
                       <h3 className="font-semibold">
                         Sale #{sale.id}
@@ -118,15 +112,27 @@ function SalesHistory() {
                       <p className="mt-1 text-sm text-gray-500">
                         {formatDate(sale.created_at)}
                       </p>
+
+                      {/* NEW: Cashier Information */}
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                        <span className="text-gray-500">
+                          Cashier:
+                        </span>
+
+                        <span className="rounded-md bg-gray-100 px-2 py-1 font-medium text-gray-800">
+                          {sale.cashier_username ||
+                            "Not recorded"}
+                        </span>
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-4">
-
                       <p className="font-semibold">
                         {formatMoney(sale.total_amount)}
                       </p>
 
                       <button
+                        type="button"
                         onClick={() =>
                           toggleSale(sale.id)
                         }
@@ -136,24 +142,19 @@ function SalesHistory() {
                           ? "Hide Details"
                           : "View Details"}
                       </button>
-
                     </div>
                   </div>
 
                   {/* Expanded Sale Details */}
                   {isExpanded && (
-
                     <div className="border-t border-gray-200 bg-gray-50 p-5">
-
                       <h4 className="mb-4 text-sm font-semibold">
                         Purchased Products
                       </h4>
 
                       {/* Product Table */}
                       <div className="overflow-x-auto">
-
                         <table className="w-full text-left text-sm">
-
                           <thead>
                             <tr className="border-b border-gray-200">
                               <th className="pb-3">
@@ -177,12 +178,10 @@ function SalesHistory() {
                           <tbody>
                             {sale.items.map(
                               (item, index) => (
-
                                 <tr
-                                  key={index}
+                                  key={item.id ?? index}
                                   className="border-b border-gray-200"
                                 >
-
                                   <td className="py-3">
                                     {item.product_name}
                                   </td>
@@ -200,15 +199,13 @@ function SalesHistory() {
                                   <td className="py-3 text-right">
                                     {formatMoney(
                                       Number(item.unit_price) *
-                                      item.quantity
+                                        item.quantity
                                     )}
                                   </td>
-
                                 </tr>
                               )
                             )}
                           </tbody>
-
                         </table>
                       </div>
 
@@ -225,7 +222,6 @@ function SalesHistory() {
 
                       {/* Payment Information */}
                       <div className="mt-5 space-y-3 border-t border-gray-200 pt-4">
-
                         <h4 className="text-sm font-semibold">
                           Payment Details
                         </h4>
@@ -269,12 +265,10 @@ function SalesHistory() {
                             for this sale.
                           </p>
                         )}
-
                       </div>
 
                       {/* Print Receipt Button */}
                       <div className="mt-6 border-t border-gray-200 pt-5">
-
                         <button
                           type="button"
                           onClick={printReceipt}
@@ -282,26 +276,20 @@ function SalesHistory() {
                         >
                           Print Receipt
                         </button>
-
                       </div>
-
                     </div>
                   )}
-
                 </div>
               );
             })}
-
           </div>
         )}
-
       </div>
 
       {/* Print-only Receipt */}
       {activeSale && (
         <Receipt sale={activeSale} />
       )}
-
     </div>
   );
 }

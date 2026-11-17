@@ -1,44 +1,40 @@
 
+from datetime import date
 from decimal import Decimal
 import hashlib
 import json
 
+from django.db import transaction, IntegrityError
 from django.db.models import Sum, F, DecimalField
-from django.db import transaction
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
 from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
-from django.db import transaction, IntegrityError
 
 from products.models import Product, StockMovement
-from .serializers import CheckoutSerializer, SaleSerializer
-from django.utils import timezone
 
-from django.db import transaction, IntegrityError
-from django.db.models import Sum
-from django.shortcuts import get_object_or_404
-from decimal import Decimal
-from datetime import date
-
-from django.db.models import Sum, F, DecimalField
-from django.utils import timezone
-
-from .models import Sale, SaleItem, Refund
-from products.models import Product
-
-from .models import Sale, SaleItem, Refund
-from .serializers import (
-    RefundRequestSerializer,
-    RefundSerializer,
-)
 from accounts.permissions import (
     IsPOSStaff,
     IsManagerOrAdmin,
 )
 
+from .models import Sale, SaleItem, Refund
 
+from .serializers import (
+    CheckoutSerializer,
+    SaleSerializer,
+    RefundRequestSerializer,
+    RefundSerializer,
+)
+
+
+# -----------------------------------------
+# 1. Checkout
+# Admin, Manager and Cashier
+# -----------------------------------------
 class CheckoutView(APIView):
     permission_classes = [IsPOSStaff]
 
@@ -153,14 +149,15 @@ class CheckoutView(APIView):
 
                 change = cash_received - total
 
-                # Save the sale
+                # Save the sale and cashier
                 sale = Sale.objects.create(
                     checkout_id=checkout_id,
                     checkout_fingerprint=fingerprint,
                     total_amount=total,
                     payment_method=Sale.PaymentMethod.CASH,
                     cash_received=cash_received,
-                    change_amount=change
+                    change_amount=change,
+                    created_by=request.user
                 )
 
                 # Save items and update stock
@@ -174,6 +171,7 @@ class CheckoutView(APIView):
                     SaleItem.objects.create(
                         sale=sale,
                         product=product,
+                        product_name=product.name,
                         quantity=quantity,
                         unit_price=product.price
                     )
@@ -183,10 +181,12 @@ class CheckoutView(APIView):
                         update_fields=["stock"]
                     )
 
+                    # Record sale stock movement and employee
                     StockMovement.objects.create(
                         product=product,
                         movement_type=StockMovement.Type.SOLD,
-                        quantity=quantity
+                        quantity=quantity,
+                        performed_by=request.user
                     )
 
         except IntegrityError:
@@ -204,23 +204,44 @@ class CheckoutView(APIView):
         )
 
 
+# -----------------------------------------
+# 2. Sales History
+# Admin and Manager Only
+# -----------------------------------------
 class SaleListView(generics.ListAPIView):
-    queryset = Sale.objects.prefetch_related(
+    permission_classes = [IsManagerOrAdmin]
+
+    queryset = Sale.objects.select_related(
+        "created_by"
+    ).prefetch_related(
         "items__product"
     ).order_by("-created_at", "-id")
 
     serializer_class = SaleSerializer
 
 
+# -----------------------------------------
+# 3. Sale Detail
+# Admin and Manager Only
+# -----------------------------------------
 class SaleDetailView(generics.RetrieveAPIView):
-    queryset = Sale.objects.prefetch_related(
+    permission_classes = [IsManagerOrAdmin]
+
+    queryset = Sale.objects.select_related(
+        "created_by"
+    ).prefetch_related(
         "items__product"
     )
 
     serializer_class = SaleSerializer
 
 
+# -----------------------------------------
+# 4. Dashboard
+# Admin and Manager Only
+# -----------------------------------------
 class DashboardView(APIView):
+    permission_classes = [IsManagerOrAdmin]
 
     def get(self, request):
         today = timezone.localdate()
@@ -255,16 +276,13 @@ class DashboardView(APIView):
         return Response({
             "date": str(today),
 
-            # Keep original field for compatibility
             "today_sales": str(gross_sales),
-
-            # New financial fields
             "today_refunds": str(total_refunds),
             "today_net_sales": str(net_sales),
-            "refund_count": refunds.count(),
 
-            # Existing metrics
+            "refund_count": refunds.count(),
             "transaction_count": sales.count(),
+
             "total_products": total_products,
             "low_stock_count": low_stock.count(),
 
@@ -279,8 +297,12 @@ class DashboardView(APIView):
         })
 
 
-
+# -----------------------------------------
+# 5. Daily Sales Report
+# Admin and Manager Only
+# -----------------------------------------
 class DailySalesReportView(APIView):
+    permission_classes = [IsManagerOrAdmin]
 
     def get(self, request):
         date_text = request.query_params.get("date")
@@ -296,7 +318,7 @@ class DailySalesReportView(APIView):
         else:
             report_date = timezone.localdate()
 
-        # Sales made on the selected date
+        # Sales made on selected date
         sales = Sale.objects.filter(
             created_at__date=report_date
         )
@@ -305,7 +327,7 @@ class DailySalesReportView(APIView):
             total=Sum("total_amount")
         )["total"] or Decimal("0.00")
 
-        # Refunds recorded on the selected date
+        # Refunds recorded on selected date
         refunds = Refund.objects.filter(
             created_at__date=report_date
         )
@@ -316,12 +338,12 @@ class DailySalesReportView(APIView):
 
         net_sales = gross_sales - total_refunds
 
-        # Original product sales breakdown
+        # Product sales breakdown using original names
         product_rows = (
             SaleItem.objects.filter(
                 sale__created_at__date=report_date
             )
-            .values("product_id", "product__name")
+            .values("product_id", "product_name")
             .annotate(
                 quantity_sold=Sum("quantity"),
                 sales_amount=Sum(
@@ -332,13 +354,13 @@ class DailySalesReportView(APIView):
                     )
                 )
             )
-            .order_by("-quantity_sold", "product__name")
+            .order_by("-quantity_sold", "product_name")
         )
 
         products = [
             {
                 "product_id": row["product_id"],
-                "product_name": row["product__name"],
+                "product_name": row["product_name"],
                 "quantity_sold": row["quantity_sold"],
                 "sales_amount": str(row["sales_amount"])
             }
@@ -353,24 +375,28 @@ class DailySalesReportView(APIView):
         return Response({
             "date": str(report_date),
 
-            # Original sales field
             "total_sales": str(gross_sales),
-
-            # New refund-aware metrics
             "total_refunds": str(total_refunds),
             "net_sales": str(net_sales),
+
             "refund_count": refunds.count(),
-
-            # Existing statistics
             "transaction_count": sales.count(),
-            "total_items_sold": total_items,
-            "products_sold_count": len(products),
 
-            # Gross product sales breakdown
+            "total_items_sold": total_items,
+
+            "products_sold_count": len({
+                product["product_id"]
+                for product in products
+            }),
+
             "products": products
         })
 
 
+# -----------------------------------------
+# 6. Refunds
+# Admin and Manager Only
+# -----------------------------------------
 class RefundView(APIView):
     permission_classes = [IsManagerOrAdmin]
 
@@ -378,7 +404,8 @@ class RefundView(APIView):
     def get(self, request):
         refunds = Refund.objects.select_related(
             "sale_item__sale",
-            "sale_item__product"
+            "sale_item__product",
+            "processed_by"
         ).order_by("-created_at", "-id")
 
         return Response(
@@ -433,14 +460,14 @@ class RefundView(APIView):
         try:
             with transaction.atomic():
 
-                # Lock the purchased item to prevent
+                # Lock purchased item to prevent
                 # simultaneous over-refunding
                 sale_item = get_object_or_404(
                     SaleItem.objects.select_for_update(),
                     pk=sale_item_id
                 )
 
-                # Check again after acquiring the lock
+                # Check again after acquiring lock
                 previous = find_previous()
 
                 if previous is not None:
@@ -480,19 +507,22 @@ class RefundView(APIView):
                 # Use original purchase price
                 amount = sale_item.unit_price * quantity
 
+                # Record refund and employee
                 refund = Refund.objects.create(
                     refund_request_id=request_id,
                     sale_item=sale_item,
                     quantity=quantity,
                     refund_amount=amount,
                     restock=restock,
-                    reason=reason
+                    reason=reason,
+                    processed_by=request.user
                 )
 
                 # Return sellable items to inventory
                 if restock:
-                    product = Product.objects.select_for_update().get(
-                        pk=sale_item.product_id
+                    product = (
+                        Product.objects.select_for_update()
+                        .get(pk=sale_item.product_id)
                     )
 
                     product.stock += quantity
@@ -500,11 +530,13 @@ class RefundView(APIView):
                         update_fields=["stock"]
                     )
 
+                    # Record returned stock and employee
                     StockMovement.objects.create(
                         product=product,
                         movement_type=StockMovement.Type.RETURNED,
                         quantity=quantity,
-                        reason=f"Refund #{refund.id}"
+                        reason=f"Refund #{refund.id}",
+                        performed_by=request.user
                     )
 
         except IntegrityError:

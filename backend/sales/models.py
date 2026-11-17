@@ -2,6 +2,7 @@
 from django.db import models
 from django.core.validators import MinValueValidator
 from products.models import Product
+from django.conf import settings
 
 
 
@@ -52,6 +53,13 @@ class Sale(models.Model):
         blank=True,
         default=""
     )
+    created_by = models.ForeignKey(
+    settings.AUTH_USER_MODEL,
+    on_delete=models.SET_NULL,
+    null=True,
+    blank=True,
+    related_name="pos_sales"
+)
 
 
     def __str__(self):
@@ -76,6 +84,11 @@ class SaleItem(models.Model):
         max_digits=10,
         decimal_places=2
     )
+    product_name = models.CharField(
+    max_length=255,
+    blank=True,
+    default=""
+)
 
     def __str__(self):
         return f"{self.product.name} x {self.quantity}"
@@ -99,6 +112,13 @@ class Refund(models.Model):
         max_digits=12,
         decimal_places=2
     )
+    processed_by = models.ForeignKey(
+    settings.AUTH_USER_MODEL,
+    on_delete=models.SET_NULL,
+    null=True,
+    blank=True,
+    related_name="pos_refunds"
+)
 
     restock = models.BooleanField()
 
