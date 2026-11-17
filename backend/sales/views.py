@@ -52,6 +52,14 @@ class CheckoutView(APIView):
             item["product_id"]
             for item in items
         ]
+        # Prevent duplicate product entries in the same checkout
+        if len(product_ids) != len(set(product_ids)):
+            raise ValidationError({
+                "items": (
+                    "Duplicate products are not allowed. "
+                    "Combine quantities into one cart item."
+                )
+            })
 
         # Identify the exact cart and cash payment
         payload = {
@@ -270,9 +278,8 @@ class DashboardView(APIView):
         total_products = Product.objects.count()
 
         low_stock = Product.objects.filter(
-            stock__lte=5
-        ).order_by("stock", "name")
-
+        stock__lte=F("reorder_level")
+    ).order_by("stock", "name")
         return Response({
             "date": str(today),
 
@@ -286,14 +293,15 @@ class DashboardView(APIView):
             "total_products": total_products,
             "low_stock_count": low_stock.count(),
 
-            "low_stock_products": list(
-                low_stock.values(
-                    "id",
-                    "name",
-                    "barcode",
-                    "stock"
-                )[:10]
-            )
+           "low_stock_products": list(
+    low_stock.values(
+        "id",
+        "name",
+        "barcode",
+        "stock",
+        "reorder_level"
+    )[:10]
+)
         })
 
 

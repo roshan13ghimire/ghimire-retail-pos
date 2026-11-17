@@ -14,6 +14,7 @@ import SalesHistory from "./SalesHistory";
 import Returns from "./Returns";
 import Reports from "./Reports";
 import Users from "./Users";
+import Suppliers from "./Suppliers";
 
 // Navigation
 const navigation = [
@@ -35,6 +36,11 @@ const navigation = [
   {
     id: "stock",
     label: "Stock",
+    roles: ["Admin", "Manager"],
+  },
+  {
+    id: "suppliers",
+    label: "Suppliers",
     roles: ["Admin", "Manager"],
   },
   {
@@ -78,15 +84,19 @@ function App() {
       try {
         const data = await getCurrentUser();
 
-if (data.authenticated) {
-  setUser(data.user);
+        if (!active) return;
 
-  setPage(
-    data.user.role === "Cashier" ? "pos" : "dashboard"
-  );
-} else {
-  setUser(null);
-}
+        if (data.authenticated) {
+          setUser(data.user);
+
+          setPage(
+            data.user.role === "Cashier"
+              ? "pos"
+              : "dashboard"
+          );
+        } else {
+          setUser(null);
+        }
       } catch {
         if (active) {
           setAuthError(
@@ -110,64 +120,64 @@ if (data.authenticated) {
   // -------------------------------------
   // 2. Login successful
   // -------------------------------------
-function handleLogin(loggedInUser) {
-  setUser(loggedInUser);
+  function handleLogin(loggedInUser) {
+    setUser(loggedInUser);
 
-  setPage(
-    loggedInUser.role === "Cashier" ? "pos" : "dashboard"
-  );
+    setPage(
+      loggedInUser.role === "Cashier"
+        ? "pos"
+        : "dashboard"
+    );
 
-  setAuthError("");
-}
+    setAuthError("");
+  }
 
   // -------------------------------------
   // 3. Logout
   // -------------------------------------
-  
-async function handleLogout() {
-  if (loggingOut) return;
+  async function handleLogout() {
+    if (loggingOut) return;
 
-  setLoggingOut(true);
-  setAuthError("");
+    setLoggingOut(true);
+    setAuthError("");
 
-  try {
-    await logoutUser();
+    try {
+      await logoutUser();
 
-    // Clear logged-in user
-    setUser(null);
-
-    // Reset page without accessing loggedInUser
-    setPage("dashboard");
-
-  } catch (err) {
-    setAuthError(err.message);
-  } finally {
-    setLoggingOut(false);
+      setUser(null);
+      setPage("dashboard");
+    } catch (err) {
+      setAuthError(err.message);
+    } finally {
+      setLoggingOut(false);
+    }
   }
-}
 
   // -------------------------------------
-  // 4. Check admin role
+  // 4. Role-based navigation
   // -------------------------------------
   const isAdmin = user?.role === "Admin";
 
-  // Hide Users tab from non-admin users
-const visibleNavigation = navigation.filter(
-  (item) => item.roles.includes(user?.role)
-);
+  const visibleNavigation = navigation.filter(
+    (item) => item.roles.includes(user?.role)
+  );
+
   // -------------------------------------
   // 5. Render selected page
   // -------------------------------------
   function renderPage() {
     if (
-  !visibleNavigation.some((item) => item.id === page)
-) {
-  return (
-    <p className="text-red-600">
-      You do not have permission to access this page.
-    </p>
-  );
-}
+      !visibleNavigation.some(
+        (item) => item.id === page
+      )
+    ) {
+      return (
+        <p className="text-red-600">
+          You do not have permission to access this page.
+        </p>
+      );
+    }
+
     switch (page) {
       case "dashboard":
         return <Dashboard />;
@@ -180,6 +190,9 @@ const visibleNavigation = navigation.filter(
 
       case "stock":
         return <Stock />;
+
+      case "suppliers":
+        return <Suppliers />;
 
       case "sales":
         return <SalesHistory />;

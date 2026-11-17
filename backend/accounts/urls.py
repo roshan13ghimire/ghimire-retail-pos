@@ -16,4 +16,5 @@ urlpatterns = [
     path("me/", current_user_view),
     path("staff/", StaffView.as_view()),
     path("staff/<int:pk>/", StaffDetailView.as_view()),
+    
 ]

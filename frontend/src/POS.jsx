@@ -14,6 +14,18 @@ async function getProducts() {
   return response.json();
 }
 
+async function getCategories() {
+  const response = await apiFetch("/api/categories/");
+
+  if (!response.ok) {
+    throw new Error("Failed to load categories.");
+  }
+
+  const data = await response.json();
+
+  return Array.isArray(data) ? data : data.results ?? [];
+}
+
 function POS() {
   // Products
   const [products, setProducts] = useState([]);
@@ -39,6 +51,9 @@ function POS() {
   // Receipt
   const [completedSale, setCompletedSale] = useState(null);
 
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState("");
+
   // Duplicate checkout protection
   const [checkoutId, setCheckoutId] = useState(
     () => crypto.randomUUID()
@@ -47,13 +62,19 @@ function POS() {
 
   // Load products
   useEffect(() => {
-    getProducts()
-      .then(setProducts)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+  getProducts()
+    .then(setProducts)
+    .catch((err) => setError(err.message))
+    .finally(() => setLoading(false));
 
-    barcodeRef.current?.focus();
-  }, []);
+  getCategories()
+    .then(setCategories)
+    .catch((err) => {
+      console.error("Category loading failed:", err);
+    });
+
+  barcodeRef.current?.focus();
+}, []);
 
   // Add product to cart
   function addToCart(product) {
@@ -203,12 +224,18 @@ function POS() {
     : 0;
 
   // Product search
-  const filteredProducts = products.filter(
-    (product) =>
+  const filteredProducts = products.filter((product) => {
+    const matchesSearch =
       `${product.name} ${product.barcode}`
         .toLowerCase()
-        .includes(search.toLowerCase())
-  );
+        .includes(search.trim().toLowerCase());
+
+    const matchesCategory =
+      selectedCategory === "" ||
+      String(product.category ?? "") === selectedCategory;
+
+    return matchesSearch && matchesCategory;
+  });
 
   // Complete checkout
   async function handleCheckout() {
@@ -391,6 +418,26 @@ function POS() {
             </p>
           )}
         </section>
+
+        <div className="mb-4">
+        <label className="mb-2 block text-sm font-medium text-gray-700">
+          Filter by Category
+        </label>
+
+        <select
+          value={selectedCategory}
+          onChange={(e) => setSelectedCategory(e.target.value)}
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-700"
+        >
+          <option value="">All Categories</option>
+
+          {categories.map((category) => (
+            <option key={category.id} value={String(category.id)}>
+              {category.name}
+            </option>
+          ))}
+        </select>
+      </div>
 
         {/* Products and Cart */}
         <div className="grid gap-6 lg:grid-cols-3">

@@ -279,6 +279,42 @@ class CheckoutTests(APITestCase):
             movement.performed_by_id,
             self.cashier.id
         )
+    
+    def test_duplicate_product_lines_rejected(self):
+        payload = self.checkout_payload(
+            quantity=6,
+            cash_received="200.00"
+        )
+
+        # Add the same product again
+        payload["items"].append({
+            "product_id": self.product.id,
+            "quantity": 6
+        })
+
+        response = self.client.post(
+            "/api/sales/checkout/",
+            payload,
+            format="json"
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+        # No sale should be recorded
+        self.assertEqual(Sale.objects.count(), 0)
+        self.assertEqual(SaleItem.objects.count(), 0)
+
+        # Inventory must remain unchanged
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 10)
+
+        # No SOLD movement should exist
+        self.assertFalse(
+            StockMovement.objects.filter(
+                movement_type=StockMovement.Type.SOLD
+            ).exists()
+        )
+
 
 class RefundTests(APITestCase):
 
