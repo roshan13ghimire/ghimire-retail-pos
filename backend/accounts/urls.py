@@ -1,6 +1,7 @@
 
 from django.urls import path
 from .views import StaffView, StaffDetailView
+from .views import demo_config_view, demo_login_view
 
 from .views import (
     csrf_view,
@@ -16,5 +17,7 @@ urlpatterns = [
     path("me/", current_user_view),
     path("staff/", StaffView.as_view()),
     path("staff/<int:pk>/", StaffDetailView.as_view()),
+    path("demo-config/", demo_config_view, name="demo-config"),
+    path("demo-login/", demo_login_view, name="demo-login"),
     
 ]

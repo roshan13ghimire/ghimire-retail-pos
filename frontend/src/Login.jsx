@@ -1,6 +1,10 @@
 
-import { useState } from "react";
-import { loginUser } from "./api";
+import { useEffect, useState } from "react";
+import {
+  loginUser,
+  loginDemoUser,
+  getDemoLoginEnabled,
+} from "./api";
 
 function Login({ onLogin }) {
   const [username, setUsername] = useState("");
@@ -8,6 +12,23 @@ function Login({ onLogin }) {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [demoEnabled, setDemoEnabled] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    getDemoLoginEnabled()
+      .then((enabled) => {
+        if (active) setDemoEnabled(enabled);
+      })
+      .catch(() => {
+        if (active) setDemoEnabled(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -19,11 +40,25 @@ function Login({ onLogin }) {
 
     try {
       const user = await loginUser(username, password);
-
-      // Tell App.jsx that login succeeded
       onLogin(user);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Login failed.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDemoLogin(role) {
+    if (loading || !demoEnabled) return;
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const user = await loginDemoUser(role);
+      onLogin(user);
+    } catch (err) {
+      setError(err.message || "Demo login failed.");
     } finally {
       setLoading(false);
     }
@@ -32,7 +67,6 @@ function Login({ onLogin }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-8">
-
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-semibold text-gray-900">
             Ghimire Retail POS
@@ -53,7 +87,6 @@ function Login({ onLogin }) {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-
           <div>
             <label
               htmlFor="login-username"
@@ -103,9 +136,44 @@ function Login({ onLogin }) {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-xs text-gray-500">
-          Authorized store staff only
-        </p>
+        {demoEnabled && (
+          <div className="mt-7 border-t border-gray-200 pt-6">
+            <p className="mb-3 text-center text-sm font-medium text-gray-700">
+              Explore the Demo
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => handleDemoLogin("owner")}
+                disabled={loading}
+                className="rounded-lg border border-gray-300 px-3 py-3 text-sm font-medium text-gray-800 hover:bg-gray-100 disabled:opacity-50"
+              >
+                Demo Owner
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleDemoLogin("cashier")}
+                disabled={loading}
+                className="rounded-lg border border-gray-300 px-3 py-3 text-sm font-medium text-gray-800 hover:bg-gray-100 disabled:opacity-50"
+              >
+                Demo Cashier
+              </button>
+            </div>
+
+            <p className="mt-4 text-center text-xs text-gray-500">
+              Public demonstration using fictional store data.
+              Changes are shared between visitors.
+            </p>
+          </div>
+        )}
+
+        {!demoEnabled && (
+          <p className="mt-6 text-center text-xs text-gray-500">
+            Authorized store staff only
+          </p>
+        )}
       </div>
     </div>
   );

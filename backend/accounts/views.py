@@ -22,6 +22,7 @@ from accounts.permissions import (
     IsPOSStaff,
 )
 
+from django.conf import settings
 from .permissions import IsPOSAdmin
 from .serializers import (
     StaffCreateSerializer,
@@ -129,6 +130,86 @@ def login_view(request):
         "message": "Login successful.",
         "user": get_user_data(user)
     })
+
+# GET /api/auth/demo-config/
+@require_GET
+def demo_config_view(request):
+    return JsonResponse({
+        "enabled": settings.DEMO_LOGIN_ENABLED
+    })
+
+
+# POST /api/auth/demo-login/
+@require_POST
+@csrf_protect
+def demo_login_view(request):
+    if not settings.DEMO_LOGIN_ENABLED:
+        return JsonResponse(
+            {"error": "Demo login is disabled."},
+            status=404
+        )
+
+    try:
+        data = json.loads(request.body)
+    except (ValueError, UnicodeDecodeError):
+        return JsonResponse(
+            {"error": "Invalid request."},
+            status=400
+        )
+
+    if not isinstance(data, dict):
+        return JsonResponse(
+            {"error": "Invalid request."},
+            status=400
+        )
+
+    demo_accounts = {
+        "owner": ("owner", "Admin"),
+        "cashier": ("testcashier", "Cashier"),
+    }
+
+    selected = demo_accounts.get(data.get("role"))
+
+    if selected is None:
+        return JsonResponse(
+            {"error": "Invalid demo role."},
+            status=400
+        )
+
+    username, expected_role = selected
+
+    try:
+        user = User.objects.get(username=username)
+    except User.DoesNotExist:
+        return JsonResponse(
+            {"error": "Demo account unavailable."},
+            status=503
+        )
+
+    if (
+        not user.is_active
+        or user.is_superuser
+        or user.is_staff
+        or get_user_role(user) != expected_role
+    ):
+        return JsonResponse(
+            {"error": "Demo account unavailable."},
+            status=503
+        )
+
+    # Intentionally permits passwordless login
+    # only for the two demo accounts in demo mode.
+    login(
+        request,
+        user,
+        backend="django.contrib.auth.backends.ModelBackend"
+    )
+
+    return JsonResponse({
+        "message": "Demo login successful.",
+        "user": get_user_data(user)
+    })
+
 
 
 # GET /api/auth/me/

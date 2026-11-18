@@ -282,3 +282,8 @@ STORAGES = {
         ),
     },
 }
+
+DEMO_LOGIN_ENABLED = (
+    APP_ENV == "demo"
+    and config("DEMO_LOGIN_ENABLED", default=False, cast=bool)
+)

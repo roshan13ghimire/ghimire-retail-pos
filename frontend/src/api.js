@@ -71,3 +71,33 @@ export async function logoutUser() {
 
   return response.json();
 }
+
+
+export async function getDemoLoginEnabled() {
+  const response = await apiFetch("/api/auth/demo-config/");
+
+  if (!response.ok) {
+    return false;
+  }
+
+  const data = await response.json();
+  return data.enabled === true;
+}
+
+export async function loginDemoUser(role) {
+  const response = await apiFetch("/api/auth/demo-login/", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ role }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || "Demo login failed.");
+  }
+
+  return data.user;
+}
