@@ -72,12 +72,25 @@ CSRF_TRUSTED_ORIGINS = [
     if origin.strip()
 ]
 
+if IS_DEPLOYED and "*" in ALLOWED_HOSTS:
+    raise ValueError(
+        "Wildcard ALLOWED_HOSTS is not permitted."
+    )
+
 SESSION_COOKIE_SECURE = IS_DEPLOYED
 CSRF_COOKIE_SECURE = IS_DEPLOYED
 
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
+
+SESSION_COOKIE_AGE = config(
+    "SESSION_COOKIE_AGE",
+    default=43200,
+    cast=int,
+)
+
+SESSION_SAVE_EVERY_REQUEST = False
 
 # Deployment must use HTTPS.
 SECURE_SSL_REDIRECT = IS_DEPLOYED
@@ -96,7 +109,14 @@ if config(
 
 # Enable HSTS later after checking HTTPS
 # and the final domain configuration.
-SECURE_HSTS_SECONDS = 0
+SECURE_HSTS_SECONDS = config(
+    "SECURE_HSTS_SECONDS",
+    default=0,
+    cast=int,
+)
+
+SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+SECURE_HSTS_PRELOAD = False
 
 
 # -----------------------------------------
@@ -166,6 +186,25 @@ WSGI_APPLICATION = "config.wsgi.application"
 # PostgreSQL
 # -----------------------------------------
 
+
+DB_SSLMODE = config(
+    "DB_SSLMODE",
+    default="require" if IS_DEPLOYED else "prefer",
+)
+
+DB_SSLROOTCERT = config(
+    "DB_SSLROOTCERT",
+    default="",
+)
+
+DB_OPTIONS = {
+    "sslmode": DB_SSLMODE,
+    "connect_timeout": 10,
+}
+
+if DB_SSLROOTCERT:
+    DB_OPTIONS["sslrootcert"] = DB_SSLROOTCERT
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -174,16 +213,10 @@ DATABASES = {
         "PASSWORD": config("DB_PASSWORD"),
         "HOST": config("DB_HOST"),
         "PORT": config("DB_PORT", default="5432"),
-
-        # Encrypt connections to the cloud database.
-        # Keep local development settings unchanged.
-        "OPTIONS": (
-            {"sslmode": "require"}
-            if IS_DEPLOYED
-            else {}
-        ),
+        "OPTIONS": DB_OPTIONS,
     }
 }
+
 
 
 
